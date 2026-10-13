@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en" data-mood="solaris">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SOLARIS // VESPERS — The Golden Hour Tidepool Sanctuary (ussysite5)</title>
+  <meta name="description" content="Eleven living kinetic pavilions suspended over a sunlit coastal mirror — where mojomast open-source systems meet ocean memory and bioluminescent twilight." />
+
+  <!-- Google Fonts: Cormorant Garamond (Lyrical Editorial Serif), Plus Jakarta Sans, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,600&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="./index.css" />
+
+  <!-- Native Import Map for Three.js r186 -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./js/vendor/three/build/three.module.js",
+        "three/addons/": "./js/vendor/three/addons/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- WebGL2 / Three.js r186 Sanctuary Canvas -->
+  <canvas id="sanctuary-canvas" aria-label="Interactive 3D Golden Hour Tidepool Sanctuary"></canvas>
+
+  <!-- Subtle Floating Hover Whisper Tooltip -->
+  <div id="pavilion-tooltip" class="pavilion-tooltip" hidden>
+    <span id="tooltip-roman" class="tooltip-roman">I</span>
+    <div class="tooltip-copy">
+      <strong id="tooltip-title">OrbitDesktop</strong>
+      <span id="tooltip-pavilion">The Astrolabe Pier</span>
+    </div>
+  </div>
+
+  <!-- Top Sanctuary Horizon Bar -->
+  <header class="sanctuary-header">
+    <div class="brand-cluster">
+      <button id="btn-home-sanctuary" class="brand-emblem" title="Return to Coastal Skiff Drift (Esc)">
+        <span class="sun-disc-icon" aria-hidden="true"></span>
+        <div class="brand-titles">
+          <span class="brand-eyebrow">USSYVERSE // ARCHIPELAGO V</span>
+          <h1 class="brand-name">SOLARIS <em>&amp;</em> VESPERS</h1>
+        </div>
+      </button>
+      <p id="mood-poem-banner" class="mood-poem-banner">
+        Warm peach light skims the mirror-flat shallows; every brass vane and glass prism catches the last honeyed breath of afternoon.
+      </p>
+    </div>
+
+    <!-- Atmospheric Mood & Camera Controls -->
+    <div class="horizon-controls">
+      <!-- 4 Time-of-Day Emotional Moods -->
+      <div class="mood-pill-group" role="group" aria-label="Sanctuary Atmospheric Time of Day">
+        <button class="mood-btn is-active" data-mood="solaris" title="17:48 Golden Hour">
+          <span class="mood-dot mood-dot--solaris"></span>Solaris
+        </button>
+        <button class="mood-btn" data-mood="vespers" title="19:14 Violet Dusk">
+          <span class="mood-dot mood-dot--vespers"></span>Vespers
+        </button>
+        <button class="mood-btn" data-mood="nocturne" title="23:02 Bioluminescent Tide">
+          <span class="mood-dot mood-dot--nocturne"></span>Nocturne
+        </button>
+        <button class="mood-btn" data-mood="aurora" title="05:36 Dawn Mist">
+          <span class="mood-dot mood-dot--aurora"></span>Aurora
+        </button>
+      </div>
+
+      <!-- Camera Perspective Switcher -->
+      <div class="camera-pill-group" role="group" aria-label="Camera Perspective">
+        <button class="cam-btn is-active" data-cam="skiff" title="Coastal Skiff Horizon Drift">Skiff Drift</button>
+        <button class="cam-btn" data-cam="birdseye" title="Lagoon Map Overview">Lagoon Map</button>
+      </div>
+
+      <!-- Generative Ocean & Aeolian Harp Synth Button -->
+      <button id="btn-audio-toggle" class="audio-btn" aria-pressed="false" title="Toggle Generative Ocean Surf & Aeolian Harp">
+        <span class="audio-wave-bars" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </span>
+        <span id="audio-label">Awaken Tide Chimes</span>
+      </button>
+
+      <!-- Wish Lantern Modal Trigger -->
+      <button id="btn-open-lantern" class="lantern-trigger-btn" title="Set a Paper Wish Lantern Adrift on the Tide">
+        ✦ Set Lantern Adrift
+      </button>
+    </div>
+  </header>
+
+  <!-- Left / Center Emotional Welcome Overlay (Auto-minimizes when inspecting a Pavilion) -->
+  <section id="sanctuary-welcome-card" class="sanctuary-welcome-card" aria-label="Sanctuary Introduction">
+    <div class="welcome-meta">
+      <span id="welcome-timecode" class="welcome-timecode">17:48 SOLAR // 11 PAVILIONS</span>
+      <span class="welcome-divider">·</span>
+      <span id="ripple-counter-badge" class="welcome-counter">1 Wish Lantern Adrift</span>
+    </div>
+    <h2 class="welcome-headline">
+      Where open-source craft meets <em>ocean memory</em> and golden light.
+    </h2>
+    <p class="welcome-prose">
+      Drift across the mirror tidepool to explore eleven kinetic coastal sculptures—each housing a live engineering work by <strong>mojomast</strong>. Touch the water to cast bioluminescent ripples, shift the sky from sunset to starlight, or pluck each pavilion’s harmonic chord.
+    </p>
+    <div class="welcome-actions">
+      <button id="btn-begin-pilgrimage" class="primary-amber-btn">
+        Begin Coastal Passage →
+      </button>
+      <div class="tide-slider-wrap">
+        <label for="tide-swell-slider">Tide Swell</label>
+        <input id="tide-swell-slider" type="range" min="0.1" max="1.0" step="0.05" value="0.55" />
+      </div>
+    </div>
+  </section>
+
+  <!-- Right Slide-Out Tidepool Field Journal Drawer (Pavilion Dossier) -->
+  <aside id="pavilion-journal" class="pavilion-journal" aria-hidden="true" aria-label="Pavilion Field Journal">
+    <div class="journal-inner">
+      <div class="journal-top-bar">
+        <div class="journal-breadcrumbs">
+          <span id="journal-roman" class="journal-roman">I</span>
+          <span id="journal-zone" class="journal-zone">West Headland // Sun-Dial Jetty</span>
+        </div>
+        <div class="journal-nav-btns">
+          <button id="btn-prev-pavilion" class="icon-circle-btn" title="Previous Pavilion (←)">←</button>
+          <button id="btn-next-pavilion" class="icon-circle-btn" title="Next Pavilion (→)">→</button>
+          <button id="btn-close-journal" class="icon-circle-btn" title="Return to Lagoon (Esc)">✕</button>
+        </div>
+      </div>
+
+      <div class="journal-header">
+        <span id="journal-category" class="journal-category">Spatial Computing / Desktop OS</span>
+        <h2 id="journal-title" class="journal-title">OrbitDesktop</h2>
+        <p id="journal-pavilion-name" class="journal-pavilion-name">The Astrolabe Pier — Spatial 3D Desktop Shell &amp; Hermes Agent Workspace</p>
+      </div>
+
+      <!-- Emotional Reflection Quote -->
+      <blockquote class="journal-reflection-box">
+        <p id="journal-reflection">
+          “We spend our lives behind flat panes of glass, longing for a workspace that breathes like a coastal horizon—where thoughts have depth, distance, and morning light.”
+        </p>
+        <footer id="journal-fieldnote" class="journal-fieldnote">
+          Sculpture Note: Three concentric spun-brass armillary rings turn lazily above a basalt tidepool.
+        </footer>
+      </blockquote>
+
+      <!-- Primary External Links & Harmonic Pluck -->
+      <div class="journal-cta-row">
+        <a id="journal-repo-link" href="https://github.com/mojomast/orbitdesktop" target="_blank" rel="noopener noreferrer" class="journal-repo-btn">
+          <span>Explore GitHub Repository</span>
+          <span aria-hidden="true">↗</span>
+        </a>
+        <a id="journal-live-link" href="https://cocs.ussyco.de" target="_blank" rel="noopener noreferrer" class="journal-live-btn" hidden>
+          <span>Launch Live Arena (cocs.ussyco.de)</span>
+          <span aria-hidden="true">⚡</span>
+        </a>
+        <button id="btn-pluck-chord" class="journal-chord-btn" title="Sound this Pavilion's Aeolian Harp Chord">
+          ♫ <span id="journal-harmonic-sig">Cmaj9 Resonance</span>
+        </button>
+      </div>
+
+      <!-- Key Metrics Trio -->
+      <div id="journal-metrics" class="journal-metrics"></div>
+
+      <!-- Overview & Verified Architecture -->
+      <div class="journal-section">
+        <h3 class="journal-section-title">Architectural Essence</h3>
+        <p id="journal-overview" class="journal-overview"></p>
+        <ul id="journal-arch-list" class="journal-arch-list"></ul>
+      </div>
+
+      <!-- Verified Capabilities & Tech Stack -->
+      <div class="journal-section">
+        <h3 class="journal-section-title">Verified Capabilities</h3>
+        <div id="journal-capabilities" class="journal-capabilities"></div>
+      </div>
+
+      <div class="journal-section">
+        <h3 class="journal-section-title">Craft &amp; Technology Stack</h3>
+        <div id="journal-tech-tags" class="journal-tech-tags"></div>
+      </div>
+
+      <!-- Live Tidepool Hydrophone / Telemetry Stream -->
+      <div class="journal-section">
+        <div class="hydrophone-header">
+          <h3 class="journal-section-title">Tidepool Hydrophone Telemetry</h3>
+          <span class="hydrophone-live-dot">LIVE RESONANCE</span>
+        </div>
+        <pre id="journal-terminal" class="journal-terminal"></pre>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Floating Wish Lantern Composer Modal -->
+  <div id="lantern-modal" class="lantern-modal-backdrop" hidden>
+    <div class="lantern-modal-card" role="dialog" aria-labelledby="lantern-modal-title">
+      <div class="lantern-modal-header">
+        <h3 id="lantern-modal-title">Set a Wish Lantern Adrift</h3>
+        <button id="btn-close-lantern-modal" class="icon-circle-btn" aria-label="Close">✕</button>
+      </div>
+      <p class="lantern-modal-desc">
+        Write a brief reflection, wish, or note of appreciation. Your paper lantern will float out onto the Golden Hour Lagoon and cast a warm bioluminescent ripple across the tide.
+      </p>
+      <form id="lantern-form">
+        <textarea
+          id="lantern-input"
+          rows="3"
+          maxlength="180"
+          placeholder="May every system we craft hold warmth, clarity, and wonder..."
+          required
+        ></textarea>
+        <div class="lantern-modal-footer">
+          <span class="lantern-hint">Persisted in Sanctuary Memory (`window.SanctuarySDK`)</span>
+          <button type="submit" class="primary-amber-btn">Release Onto the Water ✦</button>
+        </div>
+      </form>
+      <div id="lantern-recent-list" class="lantern-recent-list"></div>
+    </div>
+  </div>
+
+  <!-- Bottom Coastal Compass Dock (All 11 Pavilions) -->
+  <nav class="compass-dock-wrap" aria-label="Eleven Sanctuary Pavilions">
+    <div id="compass-dock" class="compass-dock"></div>
+  </nav>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

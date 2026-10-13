@@ -1,0 +1,20 @@
+{
+  "name": "ussysite5",
+  "version": "5.0.0",
+  "description": "SOLARIS // VESPERS — The Golden Hour Tidepool Sanctuary for Ussyverse Open Source Systems",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs",
+    "setup:vendor": "node scripts/setup-vendor.mjs",
+    "check:syntax": "node --check server.mjs && node --check projects.js && node --check js/app.js && node --check js/projects.js && node --check js/engine/scene.js && node --check js/engine/camera-rig.js && node --check js/engine/audio-synth.js && node --check js/sanctuary/pavilion-builder.js && node --check js/tide/sanctuary-sdk.js",
+    "check:mirrors": "node scripts/check-mirrors.mjs",
+    "test": "node --import ./scripts/register-three.mjs --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "author": "mojomast",
+  "license": "MIT"
+}
