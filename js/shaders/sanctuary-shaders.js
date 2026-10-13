@@ -29,14 +29,35 @@ export const TIDE_WATER_VERTEX_SHADER = /* glsl */ `
   varying vec3 vNormal;
   varying vec2 vUv;
   varying float vWaveHeight;
+  varying float vCrest;
   varying float vRippleEnergy;
 
-  // Gerstner-inspired coastal wave octave
-  vec3 calcWave(vec2 pos, vec2 dir, float freq, float amp, float speed, float time) {
-    float phase = dot(pos, dir) * freq + time * speed;
-    float s = sin(phase);
-    float c = cos(phase);
-    return vec3(dir.x * c * amp * 0.35, s * amp, dir.y * c * amp * 0.35);
+  const float GRAVITY = 9.81;
+
+  // One Gerstner (trochoidal) wave with the deep-water dispersion relation
+  // omega = sqrt(g*k) (long swells travel faster than short chop). Accumulates
+  // displacement, the analytic tangent/binormal, and the horizontal Jacobian terms.
+  void gerstner(vec2 p, vec2 dir, float wavelength, float steepness, float scale, float time,
+                inout vec3 disp, inout vec3 tang, inout vec3 bin, inout vec4 jac) {
+    float k = 6.28318530718 / wavelength;
+    float omega = sqrt(GRAVITY * k);
+    float a = (steepness / k) * scale;
+    float f = k * dot(dir, p) - omega * time;
+    float sf = sin(f);
+    float cf = cos(f);
+
+    disp.x += dir.x * a * cf;
+    disp.z += dir.y * a * cf;
+    disp.y += a * sf;
+
+    float q = steepness * scale;
+    tang += vec3(-dir.x * dir.x * (q * sf), dir.x * (q * cf), -dir.x * dir.y * (q * sf));
+    bin  += vec3(-dir.x * dir.y * (q * sf), dir.y * (q * cf), -dir.y * dir.y * (q * sf));
+
+    jac.x += -q * dir.x * dir.x * sf; // dDx/dx
+    jac.y += -q * dir.x * dir.y * sf; // dDx/dz
+    jac.z += -q * dir.y * dir.x * sf; // dDz/dx
+    jac.w += -q * dir.y * dir.y * sf; // dDz/dz
   }
 
   void main() {
@@ -44,46 +65,55 @@ export const TIDE_WATER_VERTEX_SHADER = /* glsl */ `
     vec4 worldInitial = modelMatrix * vec4(position, 1.0);
     vec2 p = worldInitial.xz;
 
-    float swell = 0.65 + uTideSwell * 0.7;
-    vec3 w1 = calcWave(p, normalize(vec2(0.8, 0.55)), 0.14, 0.22 * swell, 1.15, uTime);
-    vec3 w2 = calcWave(p, normalize(vec2(-0.6, 0.8)), 0.27, 0.11 * swell, -1.45, uTime);
-    vec3 w3 = calcWave(p, normalize(vec2(0.25, -0.95)), 0.52, 0.055 * swell, 2.05, uTime);
-    vec3 w4 = calcWave(p, normalize(vec2(-0.9, -0.35)), 0.95, 0.025 * swell, -2.6, uTime);
+    // Gentle tidepool swell. Steepness sum stays well under 1 so the surface
+    // never self-intersects; amplitude is authored through steepness.
+    float scale = 0.16 + uTideSwell * 0.34;
 
-    vec3 disp = w1 + w2 + w3 + w4;
+    vec3 disp = vec3(0.0);
+    vec3 tang = vec3(1.0, 0.0, 0.0);
+    vec3 bin  = vec3(0.0, 0.0, 1.0);
+    vec4 jac = vec4(0.0);
 
-    // Interactive circular ripples from user clicks / paper lanterns
+    gerstner(p, normalize(vec2( 0.85,  0.53)), 34.0, 0.16, scale, uTime, disp, tang, bin, jac);
+    gerstner(p, normalize(vec2(-0.55,  0.83)), 22.0, 0.13, scale, uTime, disp, tang, bin, jac);
+    gerstner(p, normalize(vec2( 0.30, -0.95)), 13.0, 0.11, scale, uTime, disp, tang, bin, jac);
+    gerstner(p, normalize(vec2(-0.90, -0.30)),  8.5, 0.09, scale, uTime, disp, tang, bin, jac);
+    gerstner(p, normalize(vec2( 0.62,  0.78)),  5.0, 0.07, scale, uTime, disp, tang, bin, jac);
+    gerstner(p, normalize(vec2(-0.35,  0.94)),  3.2, 0.06, scale, uTime, disp, tang, bin, jac);
+
+    // Interactive ripple rings: height plus an analytic radial gradient so the
+    // rings also perturb the surface normal (not just the height).
     float rippleSum = 0.0;
     float rippleEnergy = 0.0;
+    vec2 rippleGrad = vec2(0.0);
     for (int i = 0; i < 4; i++) {
       float age = uTime - uRipples[i].w;
       if (age > 0.0 && age < 9.0) {
-        float dist = length(p - uRipples[i].xz);
+        vec2 rel = p - uRipples[i].xz;
+        float dist = max(length(rel), 0.0001);
         float radius = age * 9.5;
         float band = exp(-abs(dist - radius) * 0.45) * exp(-age * 0.38);
-        float ring = sin((dist - radius) * 3.4) * band;
-        rippleSum += ring * 0.26;
+        float phase = (dist - radius) * 3.4;
+        rippleSum += sin(phase) * band * 0.24;
         rippleEnergy += band;
+        rippleGrad += (rel / dist) * (cos(phase) * 3.4 * band) * 0.24;
       }
     }
-
     disp.y += rippleSum;
 
-    // Finite-difference normal approximation for crisp sun glitter
-    float eps = 0.45;
-    float hx =
-      sin(dot(p + vec2(eps, 0.0), normalize(vec2(0.8, 0.55))) * 0.14 + uTime * 1.15) * 0.22 * swell +
-      sin(dot(p + vec2(eps, 0.0), normalize(vec2(-0.6, 0.8))) * 0.27 - uTime * 1.45) * 0.11 * swell;
-    float hz =
-      sin(dot(p + vec2(0.0, eps), normalize(vec2(0.8, 0.55))) * 0.14 + uTime * 1.15) * 0.22 * swell +
-      sin(dot(p + vec2(0.0, eps), normalize(vec2(-0.6, 0.8))) * 0.27 - uTime * 1.45) * 0.11 * swell;
+    // Analytic Gerstner normal (no finite differencing), then ripple perturbation.
+    vec3 n = normalize(cross(bin, tang));
+    n.xz += -rippleGrad;
+    n = normalize(n);
 
-    vec3 localNormal = normalize(vec3(disp.y - hx, eps * 1.8, disp.y - hz));
+    // Jacobian of the horizontal displacement map: compressing crests -> foam.
+    float J = (1.0 + jac.x) * (1.0 + jac.w) - jac.y * jac.z;
 
     vec3 displacedPos = worldInitial.xyz + disp;
     vWorldPos = displacedPos;
-    vNormal = localNormal;
+    vNormal = n;
     vWaveHeight = disp.y;
+    vCrest = J;
     vRippleEnergy = clamp(rippleEnergy, 0.0, 1.5);
 
     gl_Position = projectionMatrix * viewMatrix * vec4(displacedPos, 1.0);
@@ -105,7 +135,28 @@ export const TIDE_WATER_FRAGMENT_SHADER = /* glsl */ `
   varying vec3 vNormal;
   varying vec2 vUv;
   varying float vWaveHeight;
+  varying float vCrest;
   varying float vRippleEnergy;
+
+  float hash21(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+  }
+  float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash21(i);
+    float b = hash21(i + vec2(1.0, 0.0));
+    float c = hash21(i + vec2(0.0, 1.0));
+    float d = hash21(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+  }
+  float fbm(vec2 p) {
+    float v = vnoise(p) * 0.55;
+    v += vnoise(p * 2.03 + 5.2) * 0.3;
+    v += vnoise(p * 4.01 - 3.1) * 0.15;
+    return v;
+  }
 
   // Procedural Voronoi/Caustic pattern for subsurface bioluminescence
   float causticPattern(vec2 p, float time) {
@@ -117,51 +168,78 @@ export const TIDE_WATER_FRAGMENT_SHADER = /* glsl */ `
   }
 
   void main() {
-    vec3 N = normalize(vNormal);
     vec3 V = normalize(cameraPosition - vWorldPos);
     vec3 L = normalize(uSunDir);
+    float dist = length(cameraPosition - vWorldPos);
+    float detailFade = exp(-dist * 0.018);
 
-    // Schlick Fresnel reflection
-    float NoV = max(dot(N, V), 0.02);
-    float fresnel = pow(1.0 - NoV, 4.0);
+    // ---- micro-detail normal: two scrolling bands, faded with distance so the
+    // horizon reads as a soft streak instead of aliasing into shimmer. ----
+    vec2 q = vWorldPos.xz;
+    float t = uTime;
+    vec2 micro = vec2(0.0);
+    micro += vec2(cos(q.x * 1.7 + t * 1.3), cos(q.y * 1.5 - t * 1.1)) * 0.045;
+    micro += vec2(cos((q.x + q.y) * 3.4 - t * 2.1), cos((q.y - q.x) * 2.9 + t * 1.8)) * 0.022;
+    vec3 N = normalize(vNormal + vec3(micro.x * detailFade, 0.0, micro.y * detailFade));
 
-    // Distance from center lagoon for shallow -> deep transition
-    float radialDist = length(vWorldPos.xz);
-    float shallowMask = exp(-radialDist * 0.016);
+    float NoV = clamp(dot(N, V), 0.0, 1.0);
+    float NoL = clamp(dot(N, L), 0.0, 1.0);
 
-    vec3 waterBody = mix(uDeepColor, uShallowColor, shallowMask * 0.75 + clamp(vWaveHeight * 1.5 + 0.5, 0.0, 1.0) * 0.25);
+    // ---- Fresnel (Schlick, water F0 = 0.02) ----
+    float F0 = 0.02;
+    float fresnel = F0 + (1.0 - F0) * pow(1.0 - NoV, 5.0);
 
-    // Sky reflection gradient
+    // ---- analytic sky reflection, matching the sky dome's gradient + sun ----
     vec3 R = reflect(-V, N);
-    float skyElev = clamp(R.y * 0.5 + 0.5, 0.0, 1.0);
-    vec3 skyReflect = mix(uSkyHorizonColor, uSkyZenithColor, pow(skyElev, 0.65));
+    float skyElev = clamp(R.y, 0.0, 1.0);
+    vec3 skyReflect = mix(uSkyZenithColor, uSkyHorizonColor, pow(1.0 - skyElev, 2.6));
+    float sunAlign = max(dot(R, L), 0.0);
+    skyReflect += uSunColor * exp(-abs(R.y - 0.06) * 9.0) * 0.45;          // horizon afterglow
+    skyReflect += uSunColor * smoothstep(0.9982, 0.9996, sunAlign) * 2.2;  // reflected sun disc
+    skyReflect += uSunColor * (pow(sunAlign, 12.0) * 0.55 + pow(sunAlign, 64.0) * 0.85);
 
-    // Subsurface bioluminescent plankton veins & pavilion ring resonance
+    // ---- water body: depth gradient + Beer-Lambert-ish tint + subsurface ----
+    float radialDist = length(vWorldPos.xz);
+    float shallow = exp(-radialDist * 0.02);
+    float heightMix = clamp(vWaveHeight * 1.6 + 0.5, 0.0, 1.0);
+    vec3 body = mix(uDeepColor, uShallowColor, shallow * 0.78 + heightMix * 0.22);
+
+    // subsurface scattering glows through thin, back-lit crests
+    float sss = pow(clamp(dot(V, -L), 0.0, 1.0), 4.0) * smoothstep(0.02, 0.28, vWaveHeight);
+    body += uShallowColor * sss * 0.55;
+
+    // bioluminescent dinoflagellate veins & pavilion ring resonance (mood-driven)
     float caustics1 = causticPattern(vWorldPos.xz, uTime);
     float caustics2 = causticPattern(vWorldPos.xz * 1.6 + vec2(12.4, -7.8), -uTime * 0.85);
     float bioVeins = (caustics1 * 0.65 + caustics2 * 0.55) * uBioluminescence;
-
-    // Ring resonance around the 49m archipelago radius
     float ringBand = exp(-abs(radialDist - 49.5) * 0.14);
     vec3 bioColor = mix(vec3(0.18, 0.88, 0.86), uAccentColor, 0.45);
-    waterBody += bioColor * bioVeins * (0.45 + ringBand * 0.85);
+    body += bioColor * bioVeins * (0.45 + ringBand * 0.85);
+    body += mix(uSunColor, vec3(0.35, 0.95, 0.92), uBioluminescence * 0.6) * vRippleEnergy * 0.9;
 
-    // Interactive ripple luminescence
-    waterBody += mix(uSunColor, vec3(0.35, 0.95, 0.92), uBioluminescence * 0.6) * vRippleEnergy * 0.95;
+    // ---- foam: breaking crests (Jacobian) + shoreline band, broken by fbm ----
+    float n = fbm(q * 0.35 + vec2(t * 0.04, -t * 0.03));
+    float crestFoam = smoothstep(0.72, 0.06, vCrest) * smoothstep(0.14, 0.36, vWaveHeight);
+    float shoreFoam = exp(-abs(radialDist - 49.5) * 0.3) * 0.6 + smoothstep(0.74, 1.0, shallow) * 0.5;
+    float foam = clamp(crestFoam * (0.45 + 0.75 * n) + shoreFoam * (0.22 + 0.5 * n), 0.0, 1.0) * 0.85;
+    body = mix(body, vec3(1.0, 0.98, 0.94), foam);
 
-    // Combine body & sky reflection via Fresnel
-    vec3 color = mix(waterBody, skyReflect, clamp(fresnel * 0.82 + 0.08, 0.0, 0.92));
+    // ---- combine body + sky reflection via Fresnel ----
+    vec3 color = mix(body, skyReflect, clamp(fresnel, 0.0, 1.0));
 
-    // Golden-hour sun path specular glitter (Blinn-Phong dual lobe)
+    // ---- sun specular: GGX micro-facet lobe + shattered glitter ----
     vec3 H = normalize(L + V);
     float NoH = max(dot(N, H), 0.0);
-    float sunGlitterTight = pow(NoH, 180.0) * 2.8;
-    float sunGlitterBroad = pow(NoH, 28.0) * 0.48;
-    color += uSunColor * (sunGlitterTight + sunGlitterBroad);
+    float rough = 0.05 + 0.04 * detailFade;
+    float a2 = rough * rough;
+    float denom = NoH * NoH * (a2 - 1.0) + 1.0;
+    float D = a2 / (3.14159265 * denom * denom);
+    color += uSunColor * D * fresnel * 3.0;
+    color += uSunColor * pow(NoH, 400.0) * detailFade * 3.5;
 
-    // Distance atmospheric horizon mist blend
-    float mist = smoothstep(75.0, 210.0, radialDist);
-    color = mix(color, uSkyHorizonColor * 0.92, mist);
+    // ---- distance atmospheric horizon mist blend ----
+    float mist = smoothstep(90.0, 230.0, radialDist);
+    color = mix(color, uSkyHorizonColor * 0.95, mist);
 
     gl_FragColor = vec4(color, 0.94);
   }
