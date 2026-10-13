@@ -83,6 +83,11 @@
         <span id="audio-label">Awaken Tide Chimes</span>
       </button>
 
+      <!-- Graphics & Performance Panel Trigger -->
+      <button id="btn-open-graphics" class="lantern-trigger-btn" title="Graphics & Performance Settings">
+        <span aria-hidden="true">⚙</span> Graphics
+      </button>
+
       <!-- Wish Lantern Modal Trigger -->
       <button id="btn-open-lantern" class="lantern-trigger-btn" title="Set a Paper Wish Lantern Adrift on the Tide">
         ✦ Set Lantern Adrift
@@ -216,6 +221,97 @@
         </div>
       </form>
       <div id="lantern-recent-list" class="lantern-recent-list"></div>
+    </div>
+  </div>
+
+  <!-- Graphics & Performance Panel -->
+  <div id="graphics-modal" class="lantern-modal-backdrop" hidden>
+    <div class="lantern-modal-card graphics-panel" role="dialog" aria-modal="true" aria-label="Graphics and performance settings">
+      <div class="lantern-modal-header">
+        <h3>Graphics &amp; Performance</h3>
+        <button id="btn-close-graphics" class="icon-circle-btn" aria-label="Close">✕</button>
+      </div>
+      <p class="lantern-modal-desc">
+        Toggle every heavy feature live, watch the FPS, then <strong>Copy settings</strong> and paste it back to lock in the defaults.
+      </p>
+
+      <div class="graphics-fps-row">
+        <span class="graphics-fps" id="graphics-fps">-- FPS</span>
+        <span class="graphics-note">Auto performance is OFF by default while you tune (toggle at the bottom).</span>
+      </div>
+      <div class="graphics-info" id="graphics-renderer">detecting renderer…</div>
+
+      <div class="graphics-grid">
+        <label class="graphics-row">
+          <span class="graphics-label">Quality preset</span>
+          <select id="gfx-quality" class="graphics-select">
+            <option value="high">High · 1.5 DPR · 80k swarm</option>
+            <option value="medium">Medium · 1.0 DPR · 32k swarm</option>
+            <option value="low">Low · 0.85 DPR · 12k swarm</option>
+            <option value="reduced">Reduced · 0.75 DPR · 4k swarm</option>
+          </select>
+        </label>
+
+        <label class="graphics-row">
+          <span class="graphics-label">Pixel ratio cap <output class="graphics-val" id="gfx-dpr-val">1.00</output></span>
+          <input class="graphics-range" id="gfx-dpr" type="range" min="0.5" max="2" step="0.05" value="1">
+        </label>
+
+        <label class="graphics-row graphics-check-row">
+          <span class="graphics-label">Bioluminescent swarm</span>
+          <input class="graphics-check" id="gfx-particles" type="checkbox" checked>
+        </label>
+
+        <label class="graphics-row">
+          <span class="graphics-label">Swarm count <output class="graphics-val" id="gfx-particles-count-val">32000</output></span>
+          <input class="graphics-range" id="gfx-particles-count" type="range" min="0" max="80000" step="2000" value="32000">
+        </label>
+
+        <label class="graphics-row graphics-check-row">
+          <span class="graphics-label">Bloom</span>
+          <input class="graphics-check" id="gfx-bloom" type="checkbox" checked>
+        </label>
+
+        <label class="graphics-row graphics-check-row">
+          <span class="graphics-label">Cinematic post (rays · grain)</span>
+          <input class="graphics-check" id="gfx-cinematic" type="checkbox" checked>
+        </label>
+
+        <label class="graphics-row graphics-check-row">
+          <span class="graphics-label">Tide water</span>
+          <input class="graphics-check" id="gfx-water" type="checkbox" checked>
+        </label>
+
+        <label class="graphics-row graphics-check-row">
+          <span class="graphics-label">Sky &amp; atmosphere</span>
+          <input class="graphics-check" id="gfx-sky" type="checkbox" checked>
+        </label>
+
+        <label class="graphics-row graphics-check-row">
+          <span class="graphics-label">Central solar sanctuary</span>
+          <input class="graphics-check" id="gfx-central" type="checkbox" checked>
+        </label>
+
+        <label class="graphics-row graphics-check-row">
+          <span class="graphics-label">Pavilion sculptures</span>
+          <input class="graphics-check" id="gfx-pavilions" type="checkbox" checked>
+        </label>
+
+        <label class="graphics-row graphics-check-row">
+          <span class="graphics-label">Floating lanterns</span>
+          <input class="graphics-check" id="gfx-lanterns" type="checkbox" checked>
+        </label>
+
+        <label class="graphics-row graphics-check-row">
+          <span class="graphics-label">Auto performance (adaptive)</span>
+          <input class="graphics-check" id="gfx-auto" type="checkbox">
+        </label>
+      </div>
+
+      <div class="graphics-actions">
+        <button type="button" class="primary-amber-btn" id="graphics-copy-btn">Copy settings</button>
+        <button type="button" class="graphics-reset-btn" id="graphics-reset-btn">Reset to tier defaults</button>
+      </div>
     </div>
   </div>
 

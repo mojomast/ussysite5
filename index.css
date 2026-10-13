@@ -918,6 +918,113 @@ body {
   margin-bottom: 1rem;
 }
 
+/* ---- Graphics & performance panel ---- */
+.graphics-panel {
+  width: min(46rem, 100%);
+  max-height: 88vh;
+  overflow-y: auto;
+}
+.graphics-fps-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.15rem 0 0.55rem;
+}
+.graphics-fps {
+  font-family: var(--font-mono);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #ffd166;
+}
+.graphics-note {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-align: right;
+  max-width: 62%;
+}
+.graphics-info {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: var(--text-ivory);
+  opacity: 0.85;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-gold);
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  margin-bottom: 0.7rem;
+}
+.graphics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 0.9rem;
+}
+@media (max-width: 640px) {
+  .graphics-grid { grid-template-columns: 1fr; }
+}
+.graphics-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-gold);
+  border-radius: 0.6rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+.graphics-label {
+  font-size: 0.74rem;
+  color: var(--text-ivory);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.graphics-val {
+  color: #ffd166;
+  font-weight: 700;
+}
+.graphics-select {
+  background: rgba(8, 14, 24, 0.9);
+  color: var(--text-ivory);
+  border: 1px solid var(--border-gold);
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.72rem;
+}
+.graphics-range {
+  width: 7rem;
+  accent-color: #ffd166;
+}
+.graphics-range:disabled { opacity: 0.4; }
+.graphics-check {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: #ffd166;
+  cursor: pointer;
+  flex: none;
+}
+.graphics-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+}
+.graphics-reset-btn {
+  border: 1px solid var(--border-gold);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-ivory);
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-spring);
+}
+.graphics-reset-btn:hover {
+  border-color: var(--border-highlight);
+  transform: translateY(-1px);
+}
+
 #lantern-input {
   width: 100%;
   background: rgba(255, 255, 255, 0.05);

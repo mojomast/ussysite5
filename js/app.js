@@ -11,6 +11,7 @@
 
 import { SANCTUARY_META, USSY_PROJECTS, getProjectById } from './projects.js';
 import { SanctuarySceneEngine } from './engine/scene.js';
+import { initGraphicsPanel } from './ui/graphics-menu.js';
 import { SanctuaryAudioSynth } from './engine/audio-synth.js';
 import { SanctuarySDK } from './tide/sanctuary-sdk.js';
 
@@ -101,6 +102,9 @@ document.addEventListener('DOMContentLoaded', () => {
       updateCountersBadge();
     }
   });
+
+  // Graphics & Performance panel (live feature toggles + copyable settings)
+  initGraphicsPanel(sceneEngine);
 
   // Build Bottom Compass Dock Pills for all 11 Repositories
   function renderCompassDock() {

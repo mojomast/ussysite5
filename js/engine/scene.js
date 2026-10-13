@@ -37,6 +37,13 @@ import {
 } from '../sanctuary/pavilion-builder.js';
 import { SanctuaryCameraRig } from './camera-rig.js';
 
+export const SANCTUARY_QUALITY_TIERS = {
+  high: { id: 'high', dprCap: 1.5, particles: 80000, bloom: true, cinematic: true },
+  medium: { id: 'medium', dprCap: 1.0, particles: 32000, bloom: true, cinematic: true },
+  low: { id: 'low', dprCap: 0.85, particles: 12000, bloom: false, cinematic: false },
+  reduced: { id: 'reduced', dprCap: 0.75, particles: 4000, bloom: false, cinematic: false }
+};
+
 export class SanctuarySceneEngine {
   constructor({ canvas, onPavilionSelect, onPavilionHover, onWaterRipple }) {
     this.canvas = canvas;
@@ -73,6 +80,31 @@ export class SanctuarySceneEngine {
     this.raycaster = new THREE.Raycaster();
     this.pointerNdc = new THREE.Vector2(0, 0);
 
+    // --- Graphics feature model (used by the in-app Graphics panel) -------------
+    // `null` means "follow the current quality tier". Auto quality is off by default.
+    this.qualityTier = 'medium';
+    this.autoQualityEnabled = false;
+    this.particlesEnabled = true;
+    this.fps = 0;
+    this.graphics = {
+      pixelRatio: null,
+      particles: null,
+      particleCount: null,
+      bloom: null,
+      cinematic: null,
+      water: true,
+      sky: true,
+      central: true,
+      pavilions: true,
+      lanterns: true
+    };
+    if (typeof window !== 'undefined' && window.location) {
+      const q = new URLSearchParams(window.location.search);
+      if ((q.get('particles') || '').toLowerCase() === 'off') this.graphics.particles = false;
+      const qual = (q.get('quality') || '').toLowerCase();
+      if (SANCTUARY_QUALITY_TIERS[qual]) this.qualityTier = qual;
+    }
+
     this._initRenderer();
     this._initLights();
     this._initSkyDome();
@@ -82,6 +114,7 @@ export class SanctuarySceneEngine {
     this._initBiolumSwarm();
     this._initPostProcessing();
     this._bindEvents();
+    this._applyGraphics();
   }
 
   _initRenderer() {
@@ -487,9 +520,118 @@ export class SanctuarySceneEngine {
     this.audioPulse = pulse;
   }
 
+  // Resolve effective graphics state from tier defaults + explicit overrides.
+  _applyGraphics() {
+    const tier = SANCTUARY_QUALITY_TIERS[this.qualityTier] || SANCTUARY_QUALITY_TIERS.medium;
+    const g = this.graphics;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, g.pixelRatio ?? tier.dprCap);
+    this.renderer.setPixelRatio(dpr);
+    this.renderer.setSize(w, h);
+    this.composer?.setSize(w, h);
+
+    const count = g.particles === false ? 0 : (g.particleCount ?? tier.particles);
+    this.particlesEnabled = count > 0;
+    if (this.swarmPoints) {
+      this.swarmPoints.visible = this.particlesEnabled;
+      this.swarmPoints.geometry.setDrawRange(0, count);
+    }
+    if (this.swarmUniforms) this.swarmUniforms.uPixelRatio.value = dpr;
+
+    if (this.bloomPass) this.bloomPass.enabled = g.bloom ?? tier.bloom;
+    if (this.cinematicPass) this.cinematicPass.enabled = g.cinematic ?? tier.cinematic;
+    if (this.waterMesh) this.waterMesh.visible = g.water !== false;
+    if (this.skyDome) this.skyDome.visible = g.sky !== false;
+    if (this.centralGroup) this.centralGroup.visible = g.central !== false;
+    if (this.pavilionRoot) this.pavilionRoot.visible = g.pavilions !== false;
+    for (const l of this.floatingLanterns) l.group.visible = g.lanterns !== false;
+
+    return this.getGraphicsSettings();
+  }
+
+  // Public: merge a partial graphics override and re-apply. `quality` selects the
+  // baseline tier; other keys override that feature independently of the tier.
+  setGraphics(partial = {}) {
+    if (partial.quality !== undefined) {
+      if (SANCTUARY_QUALITY_TIERS[partial.quality]) this.qualityTier = partial.quality;
+      delete partial.quality;
+    }
+    for (const key of Object.keys(partial)) {
+      if (Object.prototype.hasOwnProperty.call(this.graphics, key)) this.graphics[key] = partial[key];
+    }
+    return this._applyGraphics();
+  }
+
+  // Public: effective, serializable graphics state (panel copy button).
+  getGraphicsSettings() {
+    const tier = SANCTUARY_QUALITY_TIERS[this.qualityTier] || SANCTUARY_QUALITY_TIERS.medium;
+    const g = this.graphics;
+    const resolved = g.particles === false ? 0 : (g.particleCount ?? tier.particles);
+    return {
+      quality: this.qualityTier,
+      pixelRatio: Math.round((this.renderer?.getPixelRatio?.() ?? 1) * 100) / 100,
+      particles: resolved > 0,
+      particleCount: resolved,
+      bloom: this.bloomPass ? this.bloomPass.enabled : tier.bloom,
+      cinematic: this.cinematicPass ? this.cinematicPass.enabled : tier.cinematic,
+      water: g.water !== false,
+      sky: g.sky !== false,
+      central: g.central !== false,
+      pavilions: g.pavilions !== false,
+      lanterns: g.lanterns !== false,
+      autoQuality: this.autoQualityEnabled,
+      fps: this.fps || 0
+    };
+  }
+
+  // Public: live renderer/GPU stats for the graphics panel.
+  getRendererInfo() {
+    const r = this.renderer;
+    if (!r) return null;
+    let webglVersion = 'unknown';
+    let gpu = 'unknown';
+    try {
+      const gl = r.getContext();
+      webglVersion = gl.getParameter(gl.VERSION) || webglVersion;
+      const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+      if (dbg) gpu = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || gpu;
+      else gpu = gl.getParameter(gl.RENDERER) || gpu;
+    } catch { /* context may be lost */ }
+    const info = r.info;
+    return {
+      threeRevision: THREE.REVISION,
+      webglVersion,
+      gpu,
+      drawCalls: info?.render?.calls ?? 0,
+      triangles: info?.render?.triangles ?? 0,
+      geometries: info?.memory?.geometries ?? 0,
+      textures: info?.memory?.textures ?? 0,
+      programs: info?.programs?.length ?? 0
+    };
+  }
+
   update() {
     const dt = this.clock.getDelta();
     const elapsed = this.clock.getElapsedTime();
+
+    // Rolling FPS + optional automatic quality downgrade (off by default).
+    this._fpsAccum = (this._fpsAccum || 0) + dt;
+    this._fpsFrames = (this._fpsFrames || 0) + 1;
+    if (this._fpsAccum >= 0.5) {
+      this.fps = Math.round(this._fpsFrames / this._fpsAccum);
+      this._fpsAccum = 0;
+      this._fpsFrames = 0;
+      if (this.autoQualityEnabled) {
+        this._slowWindows = this.fps < 45 ? (this._slowWindows || 0) + 1 : 0;
+        if (this._slowWindows >= 2) {
+          this._slowWindows = 0;
+          if (this.qualityTier === 'high') this.setGraphics({ quality: 'medium' });
+          else if (this.qualityTier === 'medium') this.setGraphics({ quality: 'low' });
+        }
+      }
+    }
 
     this.skyUniforms.uTime.value = elapsed;
     this.waterUniforms.uTime.value = elapsed;
